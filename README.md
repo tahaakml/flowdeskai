@@ -65,7 +65,7 @@ Azure Cloud Infrastructure
 
 ### 1. Cloner le dépôt
 ```bash
-git clone https://github.com/votre-utilisateur/flowdeskai.git
+git clone https://github.com/tahaakml/flowdeskai.git
 cd flowdeskai
 ```
 
