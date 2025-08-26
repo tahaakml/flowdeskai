@@ -1,0 +1,168 @@
+{
+    "name": "FlowDesk AI Chatbot Workflow",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "flowdesk-chat",
+          "responseMode": "responseNode",
+          "options": {
+            "allowedOrigins": "http://localhost:3000,https://your-domain.com"
+          }
+        },
+        "id": "webhook-node",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "model": "gpt-3.5-turbo",
+          "messages": {
+            "messageValues": [
+              {
+                "role": "system",
+                "message": "You are FlowBot, an AI assistant for FlowDeskAI, a professional ticketing system. Your role is to help employees solve common IT, HR, Logistics, and Finance problems quickly and efficiently. \n\nGuidelines:\n1. Be helpful, professional, and concise\n2. Provide step-by-step solutions for common problems\n3. If you cannot solve the problem, suggest creating a support ticket\n4. Always ask clarifying questions if needed\n5. Focus on practical solutions\n6. Be empathetic and understanding\n\nCommon problem categories:\n- IT: Password resets, email issues, computer problems, network connectivity\n- HR: Leave requests, policy questions, benefits\n- Logistics: Equipment requests, office supplies, facilities\n- Finance: Expense reports, budget questions, invoicing\n\nAlways end your response by asking if the user needs further help or if they'd like to create a support ticket."
+              },
+              {
+                "role": "user",
+                "message": "={{ $json.message }}"
+              }
+            ]
+          },
+          "options": {
+            "temperature": 0.7,
+            "maxTokens": 500
+          }
+        },
+        "id": "openai-node",
+        "name": "OpenAI GPT",
+        "type": "n8n-nodes-base.openAi",
+        "typeVersion": 1,
+        "position": [460, 300],
+        "credentials": {
+          "openAiApi": {
+            "id": "your-openai-credentials-id",
+            "name": "OpenAI API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Process the AI response and format it for the frontend\nconst aiResponse = $input.first().json.choices[0].message.content;\nconst userMessage = $('Webhook').first().json.body.message;\nconst userId = $('Webhook').first().json.body.userId;\nconst userName = $('Webhook').first().json.body.userName;\n\n// Log the conversation for analytics (optional)\nconsole.log(`User ${userName} (${userId}) asked: ${userMessage}`);\nconsole.log(`FlowBot responded: ${aiResponse}`);\n\n// Format response\nconst response = {\n  response: aiResponse,\n  timestamp: new Date().toISOString(),\n  userId: userId,\n  userName: userName,\n  success: true\n};\n\nreturn response;"
+        },
+        "id": "code-node",
+        "name": "Process Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [680, 300]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}"
+        },
+        "id": "response-node",
+        "name": "Respond to Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [900, 300]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "error-condition",
+                "leftValue": "={{ $json.error }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "object",
+                  "operation": "notEmpty"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "error-check",
+        "name": "Check for Errors",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [460, 500]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\n  \"response\": \"I'm sorry, I'm having trouble processing your request right now. Please try again or create a support ticket for assistance.\",\n  \"error\": true,\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+        },
+        "id": "error-response",
+        "name": "Error Response",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [680, 500]
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "OpenAI GPT",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI GPT": {
+        "main": [
+          [
+            {
+              "node": "Process Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Response": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check for Errors": {
+        "main": [
+          [
+            {
+              "node": "Error Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {},
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2025-01-13T10:00:00.000Z",
+    "versionId": "1"
+  }
